@@ -70,7 +70,7 @@ class OpenAILLM(BaseLLM):
             )
         
         # Base URL: explicit > default
-        self.base_url = base_url or self.DEFAULT_BASE_URL
+        self.base_url = base_url or getattr(settings.llm, "base_url", None) or self.DEFAULT_BASE_URL
         
         # Store any additional kwargs for future use
         self._extra_config = kwargs
