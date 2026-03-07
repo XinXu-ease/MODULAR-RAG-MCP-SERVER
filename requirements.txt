@@ -1,0 +1,92 @@
+# Smart Knowledge Hub - Python Dependencies
+
+# ============================================================================
+# Core RAG Dependencies
+# ============================================================================
+
+# LangChain - Text splitting & utilities
+langchain>=0.1.0
+langchain-community>=0.0.10
+
+# Vector Stores & Embeddings
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+
+# Sparse Search (BM25)
+rank-bm25>=0.1.0
+
+# PDF Processing
+markitdown>=0.0.1
+
+# Web Scraping
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+
+# LLM Providers
+openai>=1.0.0
+anthropic>=0.7.0
+ollama>=0.1.0
+
+# Vision LLM Support
+pillow>=10.0.0
+
+# Configuration Management
+pyyaml>=6.0
+
+# Data Handling
+pydantic>=2.0.0
+python-dateutil>=2.8.0
+
+# ============================================================================
+# MCP Protocol Support
+# ============================================================================
+
+mcp>=0.1.0  # Model Context Protocol SDK
+
+# ============================================================================
+# Observability & Dashboard
+# ============================================================================
+
+streamlit>=1.28.0
+
+# Structured Logging
+python-json-logger>=2.0.0
+
+# Evaluation Frameworks
+ragas>=0.0.50
+deepeval>=0.21.0
+
+# ============================================================================
+# Development & Testing Dependencies
+# ============================================================================
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.12.0
+pytest-timeout>=2.2.0
+
+# Code Quality
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.1.0
+mypy>=1.5.0
+
+# Development
+ipython>=8.15.0
+jupyter>=1.0.0
+
+# ============================================================================
+# Optional Dependencies (可选安装)
+# ============================================================================
+
+# For Qdrant Vector Store
+# qdrant-client>=2.7.0
+
+# For Pinecone Vector Store
+# pinecone-client>=3.0.0
+
+# For Cloud LLM Providers
+# azure-identity>=1.14.0
+# azure-openai>=1.0.0

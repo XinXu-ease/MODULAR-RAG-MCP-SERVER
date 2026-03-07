@@ -182,9 +182,12 @@
 
 设计要点：
 - **明确分层职责**：
-  - Loader：负责把原始文件解析为统一的 `Document` 对象（`text` + `metadata`；类型定义集中在 `src/core/types.py`）。**在当前阶段，仅实现 PDF 格式的 Loader。**
-		- 统一输出格式采用规范化 Markdown作为 `Document.text`：这样可以更好的配合后面的Splitte（Langchain RecursiveCharacterTextSplitte））方法产出高质量切块。
-		- Loader 同时抽取/补齐基础 metadata（如 `source_path`, `doc_type=pdf`, `page`, `title/heading_outline`, `images` 引用列表等），为定位、回溯与后续 Transform 提供依据。
+  - Loader：负责把原始数据源解析为统一的 `Document` 对象（`text` + `metadata`；类型定义集中在 `src/core/types.py`）。**支持 PDF 本地文件 与 网站爬取 两种数据源**。
+		- 统一输出格式采用规范化 Markdown作为 `Document.text`：这样可以更好的配合后面的Splitter（LangChain RecursiveCharacterTextSplitter）方法产出高质量切块。
+		- Loader 同时抽取/补齐基础 metadata（如 `source`、`doc_type`、`page`/`fetched_at`、`title`、`images` 引用列表等），为定位、回溯与后续 Transform 提供依据。
+		- **Loader 实现分类**：
+			- **PDFLoader**：解析本地 PDF 文件 → Markdown，抽取页码、标题等 metadata；输出：`doc_type='pdf'`。
+			- **WebLoader**：爬取指定网站 Recipe/Guide/Manual 页面 → Markdown，执行简单参数解析（份量、温度、时间等），输出：`doc_type='website'`，含 `page_type`、`recipe_params` 等。
 	- Splitter：基于 Markdown 结构（标题/段落/代码块等）与参数配置把 `Document` 切为若干 Chunk，保留原始位置与上下文引用。
 	- Transform：可插入的处理步骤（ImageCaptioning、OCR、code-block normalization、html-to-text cleanup 等），Transform 可以选择把额外信息追加到 chunk.text 或放入 chunk.metadata（推荐默认追加到 text 以保证检索覆盖）。
 	- Embed & Upsert：按批次计算 embedding，并上载到向量存储；支持向量 + metadata 上载，并提供幂等 upsert 策略（基于 id/hash）。
@@ -194,16 +197,17 @@
 
 - Loader（统一格式与元数据）
 	- **前置去重 (Early Exit / File Integrity Check)**：
-		- 机制：在解析文件前，计算原始文件的 SHA256 哈希指纹。
-		- 动作：检索 `ingestion_history` 表，若发现相同 Hash 且状态为 `success` 的记录，则认定该文件未发生变更，直接跳过后续所有处理（解析、切分、LLM重写），实现**零成本 (Zero-Cost)** 的增量更新。
+		- 机制：在解析文件/URL前，计算原始数据源的 SHA256 哈希指纹。
+		- 动作：检索 `ingestion_history` 表，若发现相同 Hash 且状态为 `success` 的记录，则认定该数据源未发生变更，直接跳过后续所有处理（解析、切分、LLM重写），实现**零成本 (Zero-Cost)** 的增量更新。
 		- **存储方案**（初期实现，可插拔）：
 			- **默认选择：SQLite**，存储于 `data/db/ingestion_history.db`
-			- **表结构**：
+			- **表结构**（以支持PDF和Website两种源）：
 				```sql
 				CREATE TABLE ingestion_history (
-				    file_hash TEXT PRIMARY KEY,
-				    file_path TEXT NOT NULL,
-				    file_size INTEGER,
+				    source_hash TEXT PRIMARY KEY,           -- 文件或URL的SHA256哈希
+				    source_type TEXT NOT NULL CHECK(source_type IN ('pdf', 'website')),
+				    source_path_or_url TEXT NOT NULL,      -- 本地路径或网站URL
+				    file_size INTEGER,                      -- 仅适用于PDF
 				    status TEXT NOT NULL CHECK(status IN ('success', 'failed', 'processing')),
 				    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 				    error_msg TEXT,
@@ -211,8 +215,9 @@
 				);
 				CREATE INDEX idx_status ON ingestion_history(status);
 				CREATE INDEX idx_processed_at ON ingestion_history(processed_at);
+				CREATE INDEX idx_source_type ON ingestion_history(source_type);
 				```
-			- **查询逻辑**：`SELECT status FROM ingestion_history WHERE file_hash = ? AND status = 'success'`
+			- **查询逻辑**：`SELECT status FROM ingestion_history WHERE source_hash = ? AND status = 'success'`
 			- **替换路径**：后续可升级为 Redis（分布式缓存）或 PostgreSQL（企业级中心化存储）
 	
 	> **📌 持久化存储架构统一说明**
@@ -234,10 +239,12 @@
 	> **升级路径**：当系统规模扩展至分布式场景时，可通过统一的抽象接口将 SQLite 替换为 PostgreSQL 或 Redis，无需修改上层业务逻辑。
 	
 	- **解析与标准化**：
-		- 当前范围：**仅实现 PDF -> canonical Markdown 子集** 的转换。
-	- 技术选型（Python PDF -> Markdown）：
-		- **首选：MarkItDown**（作为默认 PDF 解析/转换引擎）。优点是直接产出 Markdown 形态文本，便于与后续 `RecursiveCharacterTextSplitter` 的 separators 配合。
-	- 输出标准 `Document`：`id|source|text(markdown)|metadata`。metadata 至少包含 `source_path`, `doc_type`, `title/heading_outline`, `page/slide`（如适用）, `images`（图片引用列表）。
+		- 当前范围：**支持 PDF 和 Web 爬取两种原始格式** 的转换。
+	- 技术选型与实现细节：
+		- **PDF Loader**：MarkItDown 引擎，流程为哈希检查→PDF解析→Markdown转换→元数据抽取。
+		- **Web Loader**：BeautifulSoup+Requests 爬取，支持Breville/Baratza/Fellow/Stumptown/Blue Bottle/Hario/AeroPress/Chemex 等白名单网站，自动识别Recipe并提取参数。
+		- 两种Loader都同时支持图像提取和去重机制。
+	- 输出标准 `Document`：`id|source|text(markdown)|metadata`。metadata必含 `source`, `doc_type`(pdf/website), `title`, `fetched_at`/`modification_time`；PDF特有 `file_size`, `page_count`；Website特有 `page_type`, `website_name`, `recipe_params`。
 	- Loader 不负责切分：只做“格式统一 + 结构抽取 + 引用收集”，确保切分策略可独立迭代与度量。
 
 - Splitter（LangChain 负责切分；独立、可控）
@@ -395,9 +402,9 @@ Server 通过 `tools/list` 向 Client 注册可调用的工具函数。工具设
 
 | 工具名称 | 功能描述 | 典型输入参数 | 输出特点 |
 |---------|---------|-------------|---------|
-| `query_knowledge_hub` | 主检索入口，执行混合检索 + Rerank，返回最相关片段 | `query: string`, `top_k?: int`, `collection?: string` | 返回带引用的结构化结果 |
-| `list_collections` | 列举知识库中可用的文档集合 | 无 | 集合名称、描述、文档数量 |
-| `get_document_summary` | 获取指定文档的摘要与元信息 | `doc_id: string` | 标题、摘要、创建时间、标签 |
+| `query_knowledge_hub` | 主检索入口，执行混合检索 + Rerank，返回最相关片段 | `query: string`, `top_k?: int`, `collection?: string`, `doc_type?: string` | 返回带引用的结构化结果；支持按doc_type（pdf/website）过滤 |
+| `list_collections` | 列举知识库中可用的文档集合 | 无 | 集合名称、描述、文档数量（按doc_type细分） |
+| `get_document_summary` | 获取指定文档的摘要与元信息 | `doc_id: string` | 标题、摘要、创建时间、标签、doc_type |
 
 - **扩展工具（Agentic 演进方向）**：
 	- `search_by_keyword` / `search_by_semantic`：拆分独立的检索策略，供 Agent 自主选择。
@@ -411,11 +418,26 @@ MCP 协议的 Tool 返回格式支持多种内容类型（`content` 数组），
 - **结构化引用设计**：
 	- 每个检索结果片段应包含完整的定位信息：`source_file`（文件名/路径）、`page`（页码，如适用）、`chunk_id`（片段标识）、`score`（相关性分数）。
 	- 推荐在返回的 `structuredContent` 中采用统一的 Citation 格式：
-		```
+		```json
 		{
 		  "answer": "...",
 		  "citations": [
-		    { "id": 1, "source": "xxx.pdf", "page": 5, "text": "原文片段...", "score": 0.92 },
+		    { 
+		      "id": 1, 
+		      "source": "xxx.pdf", 
+		      "doc_type": "pdf",
+		      "page": 5, 
+		      "text": "原文片段...", 
+		      "score": 0.92 
+		    },
+		    {
+		      "id": 2,
+		      "source": "https://aeropress.com/recipes",
+		      "doc_type": "website",
+		      "page_type": "recipe",
+		      "text": "原文片段...",
+		      "score": 0.88
+		    },
 		    ...
 		  ]
 		}

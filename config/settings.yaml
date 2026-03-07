@@ -1,0 +1,129 @@
+# Smart Knowledge Hub - Default Configuration
+
+# ============================================================================
+# LLM Configuration
+# ============================================================================
+
+llm:
+  # 提供商选项: azure | openai | ollama | deepseek
+  provider: openai
+  model: gpt-4  # OpenAI 模型名称，或 Ollama 模型名称
+  api_base: https://litellm.oit.duke.edu/v1  # Duke litellm 代理服务
+  
+  # 如果使用 OpenAI，配置以下字段（通过环境变量 OPENAI_API_KEY 或这里设置）
+  # api_key: ${OPENAI_API_KEY}
+  
+  # 如果使用 Azure，配置以下字段
+  # api_key: ${AZURE_OPENAI_KEY}
+  # api_base: https://<your-resource>.openai.azure.com
+  # deployment_name: gpt-4  # 在 Azure 中创建的部署名称
+
+
+# ============================================================================
+# Embedding Configuration
+# ============================================================================
+
+embedding:
+  # 提供商选项: openai | ollama | bge
+  provider: openai
+  model: text-embedding-3-small  # OpenAI 嵌入模型名称，或 Ollama 模型名称
+  api_base: https://litellm.oit.duke.edu/v1
+  
+  # 向量维度（取决于模型）
+  # - nomic-embed-text: 384
+  # - text-embedding-3-small: 1536
+  # - text-embedding-3-large: 3072
+  dimension: 384
+
+
+# ============================================================================
+# Vector Store Configuration
+# ============================================================================
+
+vector_store:
+  # 后端选项: chroma | qdrant | pinecone | weaviate
+  backend: chroma
+  
+  # Chroma: 本地文件系统持久化
+  persist_directory: data/db/chroma
+
+
+# ============================================================================
+# Retrieval Configuration
+# ============================================================================
+
+retrieval:
+  # 默认返回的结果数量
+  top_k: 10
+  
+  # 稀疏检索后端（关键词匹配）
+  sparse_backend: bm25  # 选项: bm25 | elasticsearch
+  
+  # 混合检索结果融合算法
+  fusion_algorithm: rrf  # 选项: rrf | weighted_sum
+  
+  # 重排序后端（精排）
+  # 选项: none (关闭) | cross_encoder | llm
+  rerank_backend: null
+  
+  # 重排候选集大小（若启用重排）
+  rerank_top_n: 20
+
+
+# ============================================================================
+# Observability & Tracing Configuration
+# ============================================================================
+
+observability:
+  # 是否启用追踪与日志
+  enabled: true
+  
+  logging:
+    # 日志文件路径
+    log_file: logs/traces.jsonl
+    # 日志级别: DEBUG | INFO | WARNING | ERROR
+    log_level: INFO
+  
+  # 追踪详细级别: minimal | standard | verbose
+  detail_level: standard
+
+
+# ============================================================================
+# Dashboard Configuration
+# ============================================================================
+
+dashboard:
+  # 是否启用 Dashboard 管理平台
+  enabled: true
+  
+  # Streamlit 服务端口
+  port: 8501
+  
+  # 追踪日志目录
+  traces_dir: logs
+  
+  # 是否自动刷新
+  auto_refresh: true
+  
+  # 自动刷新间隔（秒）
+  refresh_interval: 5
+
+
+# ============================================================================
+# 高级配置示例
+# ============================================================================
+
+# 快速切换到 Azure OpenAI 的例子（取消注释后替换上面的 llm 配置）
+#llm:
+#  provider: azure
+#  model: gpt-4o
+#  api_key: ${AZURE_OPENAI_KEY}
+#  api_base: https://your-resource.openai.azure.com
+#  deployment_name: gpt-4o
+
+# 快速切换到本地 OpenAI 兼容服务的例子（如 vLLM / LM Studio）
+#llm:
+#  provider: openai
+#  model: local-model
+#  api_key: any-value
+#  api_base: http://localhost:8000/v1  # vLLM 默认端口
