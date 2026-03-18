@@ -188,12 +188,12 @@ class TestSettings:
         """测试 Settings 的默认值"""
         settings = Settings()
         
-        # 检验默认 LLM 配置
-        assert settings.llm.provider == "ollama"
-        assert settings.llm.model == "llama2"
+        # 检验默认 LLM 配置（与 Settings._defaults 保持一致）
+        assert settings.llm.provider == "openai"
+        assert settings.llm.model == "gpt-4"
         
         # 检验默认 Embedding 配置
-        assert settings.embedding.provider == "ollama"
+        assert settings.embedding.provider == "openai"
         
         # 检验默认向量库
         assert settings.vector_store.backend == "chroma"
