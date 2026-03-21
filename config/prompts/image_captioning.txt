@@ -1,0 +1,2 @@
+﻿Generate one concise caption sentence for retrieval context.
+Image reference: {image_ref}

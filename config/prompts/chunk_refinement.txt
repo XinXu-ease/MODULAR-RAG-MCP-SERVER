@@ -1,0 +1,4 @@
+﻿Please clean and normalize the chunk text without losing factual details.
+Keep markdown structure where useful.
+
+{text}

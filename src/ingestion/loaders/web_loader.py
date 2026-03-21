@@ -1,9 +1,9 @@
 import hashlib
 import re
 from datetime import datetime, timezone
-from html import unescape
+from html import unescape #把 HTML 实体（如 &amp;）转成正常字符。
 from typing import Any, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse #拆解 URL（scheme/domain/path）
 
 try:
     import requests
@@ -60,7 +60,7 @@ class WebLoader(BaseLoader):
 
     def __init__(self, timeout: int = 10, session: Optional[Any] = None):
         self.timeout = timeout
-        self.session = session or self._build_session()
+        self.session = session or self._build_session() #如果没有传入 session，就创建一个新的 requests.Session() 实例。
         self.session.headers.update(
             {
                 "User-Agent": (
@@ -69,7 +69,7 @@ class WebLoader(BaseLoader):
                     "Chrome/122.0.0.0 Safari/537.36"
                 )
             }
-        )
+        ) #设置一个常见的 User-Agent，模拟浏览器访问，避免被服务器拒绝。
 
     def load(self, source: str) -> Document:
         if not self.validate(source):
@@ -103,7 +103,7 @@ class WebLoader(BaseLoader):
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             return False
 
-        domain = parsed.netloc.lower().removeprefix("www.")
+        domain = parsed.netloc.lower().removeprefix("www.") #统一域名格式，去掉 www.
         domain_config = self.WHITELIST.get(domain)
         if domain_config is None:
             return False
@@ -116,19 +116,19 @@ class WebLoader(BaseLoader):
         if BeautifulSoup is None:
             return WebLoader._html_to_markdown_without_bs4(html)
 
-        soup = BeautifulSoup(html, "html.parser")
+        soup = BeautifulSoup(html, "html.parser") #解析 HTML
 
         for tag in soup(["script", "style", "noscript"]):
-            tag.decompose()
+            tag.decompose() #删除这些噪声标签及其内容
 
         parts: list[str] = []
         title = soup.title.string.strip() if soup.title and soup.title.string else None
         if title:
-            parts.append(f"# {title}")
+            parts.append(f"# {title}") #把标题作为一级标题添加到 parts 列表
 
-        body = soup.body or soup
-        for node in body.find_all(["h1", "h2", "h3", "p", "li"]):
-            text = node.get_text(" ", strip=True)
+        body = soup.body or soup #如果没有 body 标签，就从整个文档开始提取文本
+        for node in body.find_all(["h1", "h2", "h3", "p", "li"]): #只提取这些标签的文本
+            text = node.get_text(" ", strip=True) #把标签内的文本提取出来
             if not text:
                 continue
             if node.name == "h1":
@@ -140,7 +140,7 @@ class WebLoader(BaseLoader):
             elif node.name == "li":
                 parts.append(f"- {text}")
             else:
-                parts.append(text)
+                parts.append(text) #把提取的文本根据标签类型添加到 parts 列表，标题加上 Markdown 语法，段落直接添加
 
         normalized = "\n\n".join(parts)
         normalized = re.sub(r"\n{3,}", "\n\n", normalized).strip()
@@ -151,7 +151,7 @@ class WebLoader(BaseLoader):
     @staticmethod
     def _extract_title(html: str) -> Optional[str]:
         if BeautifulSoup is not None:
-            soup = BeautifulSoup(html, "html.parser")
+            soup = BeautifulSoup(html, "html.parser") #解析 HTML
             if soup.title and soup.title.string:
                 return soup.title.string.strip()
             heading = soup.find("h1")
@@ -159,11 +159,11 @@ class WebLoader(BaseLoader):
                 return heading.get_text(" ", strip=True)
             return None
 
-        title_match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
+        title_match = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL) #用正则表达式提取 title 标签的内容
         if title_match:
             return WebLoader._clean_text(title_match.group(1))
         heading_match = re.search(r"<h1[^>]*>(.*?)</h1>", html, flags=re.IGNORECASE | re.DOTALL)
-        if heading_match:
+        if heading_match:  #如果没有 title 标签，就尝试提取第一个 h1 标签的内容作为标题
             return WebLoader._clean_text(heading_match.group(1))
         return None
 
@@ -171,8 +171,8 @@ class WebLoader(BaseLoader):
     def _extract_images(html: str) -> list[str]:
         if BeautifulSoup is not None:
             soup = BeautifulSoup(html, "html.parser")
-            return [img.get("src", "") for img in soup.find_all("img") if img.get("src")]
-        return re.findall(r'<img[^>]+src=["\'](.*?)["\']', html, flags=re.IGNORECASE)
+            return [img.get("src", "") for img in soup.find_all("img") if img.get("src")] #提取所有 img 标签的 src 属性，src 是 HTML <img> 标签的标准属性，表示图片地址。
+        return re.findall(r'<img[^>]+src=["\'](.*?)["\']', html, flags=re.IGNORECASE) #用正则表达式提取所有 img 标签的 src 属性
 
     def _website_name(self, source: str) -> str:
         domain = urlparse(source).netloc.lower().removeprefix("www.")

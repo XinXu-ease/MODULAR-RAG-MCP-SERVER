@@ -20,7 +20,7 @@ class DummySession:
         return DummyResponse(self.html)
 
 
-def test_web_loader_loads_whitelisted_page():
+def test_web_loader_loads_whitelisted_page(): #测试 WebLoader 是否能正确加载一个在白名单中的 URL，并提取标题、文本和图片信息
     html = """
     <html>
       <head><title>V60 Recipe</title></head>
@@ -42,7 +42,7 @@ def test_web_loader_loads_whitelisted_page():
     assert document.metadata["images"] == ["https://example.com/v60.png"]
 
 
-def test_web_loader_rejects_non_whitelisted_url():
+def test_web_loader_rejects_non_whitelisted_url(): #测试 WebLoader 是否会拒绝一个不在白名单中的 URL，并抛出 ValueError 异常
     loader = WebLoader(session=DummySession("<html></html>"))
     with pytest.raises(ValueError):
         loader.load("https://example.com/random")

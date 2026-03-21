@@ -1,16 +1,33 @@
-from abc import ABC, abstractmethod
-from typing import Any, Iterable, List, Optional, Dict
+﻿from abc import ABC, abstractmethod
+from typing import Any, Dict, Iterable, List, Optional
 
 
 class BaseVectorStore(ABC):
-    """向量库存储的抽象接口。"""
+    """Abstract interface for vector database backends."""
 
     @abstractmethod
-    def add(self, embeddings: Iterable[List[float]], metadatas: Iterable[Dict[str, Any]], ids: Optional[Iterable[str]] = None):
-        """批量写入向量及其元数据。"""
+    def add(
+        self,
+        embeddings: Iterable[List[float]],
+        metadatas: Iterable[Dict[str, Any]],
+        ids: Optional[Iterable[str]] = None,
+        documents: Optional[Iterable[str]] = None,
+    ):
+        """Append records to the store."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def upsert(
+        self,
+        embeddings: Iterable[List[float]],
+        metadatas: Iterable[Dict[str, Any]],
+        ids: Iterable[str],
+        documents: Optional[Iterable[str]] = None,
+    ):
+        """Insert-or-update records in an idempotent way."""
         raise NotImplementedError
 
     @abstractmethod
     def query(self, query_embedding: List[float], top_k: int = 10) -> List[Dict[str, Any]]:
-        """根据查询向量执行最近邻检索，返回带分数的记录。"""
+        """Nearest-neighbor lookup for a query embedding."""
         raise NotImplementedError
