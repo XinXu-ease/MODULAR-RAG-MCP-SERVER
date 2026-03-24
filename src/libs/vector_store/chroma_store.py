@@ -71,3 +71,19 @@ class ChromaStore(BaseVectorStore):
                 }
             )
         return results
+
+    def get_by_ids(self, ids: Iterable[str]) -> List[Dict[str, Any]]:
+        resp = self._collection.get(
+            ids=list(ids),
+            include=["metadatas", "documents"],
+        )
+        results = []
+        for i in range(len(resp.get("ids", []))):
+            results.append(
+                {
+                    "id": resp["ids"][i],
+                    "metadata": resp.get("metadatas", [None])[i],
+                    "text": resp.get("documents", [None])[i],
+                }
+            )
+        return results

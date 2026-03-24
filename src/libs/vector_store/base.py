@@ -31,3 +31,8 @@ class BaseVectorStore(ABC):
     def query(self, query_embedding: List[float], top_k: int = 10) -> List[Dict[str, Any]]:
         """Nearest-neighbor lookup for a query embedding."""
         raise NotImplementedError
+
+    @abstractmethod
+    def get_by_ids(self, ids: Iterable[str]) -> List[Dict[str, Any]]:
+        """Fetch stored records by ids."""
+        raise NotImplementedError
