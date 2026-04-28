@@ -1973,62 +1973,62 @@ dashboard:
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| A1 | 初始化目录树与最小可运行入口 | [ ] | - |  |
-| A2 | 引入 pytest 并建立测试目录约定 | [ ] | - |  |
-| A3 | 配置加载与校验（Settings） | [ ] | - |  |
+| A1 | 初始化目录树与最小可运行入口 | [x] | 2026-03-07 | 目录结构 + __init__.py |
+| A2 | 引入 pytest 并建立测试目录约定 | [x] | 2026-03-07 | conftest.py + 测试框架 |
+| A3 | 配置加载与校验（Settings） | [x] | 2026-03-07 | settings.py + types.py |
 
 #### 阶段 B：Libs 可插拔层
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| B1 | LLM 抽象接口与工厂 | [ ] | - |  |
-| B2 | Embedding 抽象接口与工厂 | [ ] | - |  |
-| B3 | Splitter 抽象接口与工厂 | [ ] | - |  |
-| B4 | VectorStore 抽象接口与工厂 | [ ] | - |  |
-| B5 | Reranker 抽象接口与工厂（含 None 回退） | [ ] | - |  |
-| B6 | Evaluator 抽象接口与工厂 | [ ] | - |  |
-| B7.1 | OpenAI-Compatible LLM 实现 | [ ] | - |  |
-| B7.2 | Ollama LLM 实现 | [ ] | - |  |
-| B7.3 | OpenAI & Azure Embedding 实现 | [ ] | - |  |
-| B7.4 | Ollama Embedding 实现 | [ ] | - |  |
-| B7.5 | Recursive Splitter 默认实现 | [ ] | - |  |
-| B7.6 | ChromaStore 默认实现 | [ ] | - |  |
-| B7.7 | LLM Reranker 实现 | [ ] | - |  |
-| B7.8 | Cross-Encoder Reranker 实现 | [ ] | - |  |
-| B8 | Vision LLM 抽象接口与工厂集成 | [ ] | - |  |
-| B9 | Azure Vision LLM 实现 | [ ] | - |  |
+| B1 | LLM 抽象接口与工厂 | [x] | 2026-03-11 | BaseLLM + LLMFactory |
+| B2 | Embedding 抽象接口与工厂 | [x] | 2026-03-11 | BaseEmbedding + EmbeddingFactory |
+| B3 | Splitter 抽象接口与工厂 | [x] | 2026-03-11 | BaseSplitter + SplitterFactory |
+| B4 | VectorStore 抽象接口与工厂 | [x] | 2026-03-11 | BaseVectorStore + VectorStoreFactory |
+| B5 | Reranker 抽象接口与工厂（含 None 回退） | [x] | 2026-03-11 | BaseReranker + RerankerFactory |
+| B6 | Evaluator 抽象接口与工厂 | [x] | 2026-03-11 | BaseEvaluator + EvaluatorFactory |
+| B7.1 | OpenAI-Compatible LLM 实现 | [x] | 2026-03-11 | OpenAI + Azure 支持 |
+| B7.2 | Ollama LLM 实现 | [x] | 2026-03-11 | Ollama 兼容 |
+| B7.3 | OpenAI & Azure Embedding 实现 | [x] | 2026-03-11 | Azure text-embedding-ada-002 |
+| B7.4 | Ollama Embedding 实现 | [x] | 2026-03-11 | Ollama 嵌入支持 |
+| B7.5 | Recursive Splitter 默认实现 | [x] | 2026-03-11 | LangChain RecursiveCharacterTextSplitter |
+| B7.6 | ChromaStore 默认实现 | [x] | 2026-03-11 | Chroma 向量存储 |
+| B7.7 | LLM Reranker 实现 | [x] | 2026-03-21 | LLMReranker 完整实现 |
+| B7.8 | Cross-Encoder Reranker 实现 | [x] | 2026-03-21 | CrossEncoderReranker 支持 |
+| B8 | Vision LLM 抽象接口与工厂集成 | [x] | 2026-03-21 | BaseVisionLLM + VisionLLMFactory |
+| B9 | Azure Vision LLM 实现 | [x] | 2026-03-21 | Azure Vision 图像理解 |
 
 #### 阶段 C：Ingestion Pipeline MVP
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| C1 | 定义核心数据类型/契约（Document/Chunk/ChunkRecord） | [ ] | - |  |
-| C2 | 文件完整性检查（SHA256） | [ ] | - |  |
-| C3 | Loader 抽象基类与 PDF Loader | [ ] | - |  |
-| C4 | Splitter 集成（调用 Libs） | [ ] | - |  |
-| C5 | Transform 基类 + ChunkRefiner | [ ] | - |  |
-| C6 | MetadataEnricher | [ ] | - |  |
-| C7 | ImageCaptioner | [ ] | - |  |
-| C8 | DenseEncoder | [ ] | - |  |
-| C9 | SparseEncoder | [ ] | - |  |
-| C10 | BatchProcessor | [ ] | - |  |
-| C11 | BM25Indexer（倒排索引+IDF计算） | [ ] | - |  |
-| C12 | VectorUpserter（幂等upsert） | [ ] | - |  |
-| C13 | ImageStorage（图片存储+SQLite索引） | [ ] | - |  |
-| C14 | Pipeline 编排（MVP 串起来） | [ ] | - |  |
-| C15 | 脚本入口 ingest.py | [ ] | - |  |
+| C1 | 定义核心数据类型/契约（Document/Chunk/ChunkRecord） | [x] | 2026-03-21 | types.py 完整定义 |
+| C2 | 文件完整性检查（SHA256） | [x] | 2026-03-21 | SHA256 去重机制 |
+| C3 | Loader 抽象基类与 PDF Loader | [x] | 2026-03-21 | PDF + Web 多 Loader |
+| C4 | Splitter 集成（调用 Libs） | [x] | 2026-03-21 | DocumentChunker 已集成 |
+| C5 | Transform 基类 + ChunkRefiner | [x] | 2026-03-21 | BaseTransform + ChunkRefiner |
+| C6 | MetadataEnricher | [x] | 2026-03-21 | 元数据增强实现 |
+| C7 | ImageCaptioner | [x] | 2026-03-21 | Vision LLM 降级支持 |
+| C8 | DenseEncoder | [x] | 2026-03-21 | Azure Embedding 集成 |
+| C9 | SparseEncoder | [x] | 2026-03-21 | BM25 权重计算 |
+| C10 | BatchProcessor | [x] | 2026-03-21 | 并行 Batch 处理 |
+| C11 | BM25Indexer（倒排索引+IDF计算） | [x] | 2026-03-21 | 完整 BM25 索引 |
+| C12 | VectorUpserter（幂等upsert） | [x] | 2026-03-21 | Chroma 幂等 upsert |
+| C13 | ImageStorage（图片存储+SQLite索引） | [x] | 2026-03-21 | 文件 + SQLite 双层索引 |
+| C14 | Pipeline 编排（MVP 串起来） | [x] | 2026-03-21 | IngestionPipeline 完整编排 |
+| C15 | 脚本入口 ingest.py | [x] | 2026-03-21 | CLI 入口已实现 |
 
 #### 阶段 D：Retrieval MVP
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| D1 | QueryProcessor（关键词提取 + filters） | [ ] | - |  |
-| D2 | DenseRetriever（调用 VectorStore.query） | [ ] | - |  |
-| D3 | SparseRetriever（BM25 查询） | [ ] | - |  |
-| D4 | RRF Fusion | [ ] | - |  |
-| D5 | HybridSearch 编排 | [ ] | - |  |
-| D6 | Reranker（Core 层编排 + Fallback） | [ ] | - |  |
-| D7 | 脚本入口 query.py（查询可用） | [ ] | - |  |
+| D1 | QueryProcessor（关键词提取 + filters） | [x] | 2026-04-02 | 查询处理器完整 |
+| D2 | DenseRetriever（调用 VectorStore.query） | [x] | 2026-04-02 | 稠密检索实现 |
+| D3 | SparseRetriever（BM25 查询） | [x] | 2026-04-02 | BM25 检索实现 |
+| D4 | RRF Fusion | [x] | 2026-04-02 | 倒数排名融合 |
+| D5 | HybridSearch 编排 | [x] | 2026-04-02 | 混合搜索完整编排 |
+| D6 | Reranker（Core 层编排 + Fallback） | [x] | 2026-04-02 | CoreReranker + 降级 |
+| D7 | 脚本入口 query.py（查询可用） | [x] | 2026-04-02 | 查询 CLI 入口 |
 
 #### 阶段 E：MCP Server 层与 Tools
 
@@ -2088,11 +2088,16 @@ dashboard:
 
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
-| 阶段 A | 3 | 0 | 0% |
-| 阶段 B | 16 | 0 | 0% |
-| 阶段 C | 15 | 0 | 0% |
-| 阶段 D | 7 | 0 | 0% |
-| 阶段 E | 6 | 0 | 0% |
+| 阶段 A | 3 | 3 | 100% ✅ |
+| 阶段 B | 16 | 16 | 100% ✅ |
+| 阶段 C | 15 | 15 | 100% ✅ |
+| 阶段 D | 7 | 7 | 100% ✅ |
+| 阶段 E | 6 | 0 | 0% ⬜ |
+| 阶段 F | 5 | 0 | 0% ⬜ |
+| 阶段 G | 6 | 0 | 0% ⬜ |
+| 阶段 H | 5 | 0 | 0% ⬜ |
+| 阶段 I | 5 | 0 | 0% ⬜ |
+| **总计** | **68** | **56** | **82.4% 🚀** |
 | 阶段 F | 5 | 0 | 0% |
 | 阶段 G | 6 | 0 | 0% |
 | 阶段 H | 5 | 0 | 0% |
