@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from src.core.settings import Settings, get_settings
 from src.core.types import RetrievalResult
-from src.libs.reranker.reranker_factory import RerankerFactory
+from src.libs.reranker.reranker_factory import create_reranker
 
 
 class Reranker:
@@ -23,7 +23,7 @@ class Reranker:
             settings: 系统配置对象，用于读取 rerank 后端配置
         """
         self.settings = settings or get_settings()
-        self.backend_reranker = RerankerFactory.create(self.settings)
+        self.backend_reranker = create_reranker(self.settings)
 
     def rerank(
         self,

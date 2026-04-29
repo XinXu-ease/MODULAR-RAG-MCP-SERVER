@@ -306,6 +306,165 @@ class TestMCPServerBasic:
             assert False, "MCP SDK not installed (pip install mcp)"
 
 
+class TestQueryKnowledgeHubTool:
+    """Tests for query_knowledge_hub MCP tool (E3)."""
+
+    def test_tool_imports(self):
+        """Test that query_knowledge_hub module imports successfully."""
+        try:
+            from src.mcp_server.tools.query_knowledge_hub import QueryKnowledgeHubTool
+            assert QueryKnowledgeHubTool is not None
+            print("✓ QueryKnowledgeHubTool imports successfully", file=sys.stderr)
+        except ImportError as e:
+            assert False, f"Failed to import query_knowledge_hub: {e}"
+
+    def test_response_builder_imports(self):
+        """Test that response builder modules import successfully."""
+        try:
+            from src.core.response.response_builder import ResponseBuilder, MCPResponse
+            from src.core.response.citation_generator import CitationGenerator
+            assert ResponseBuilder is not None
+            assert CitationGenerator is not None
+            print("✓ Response builder modules import successfully", file=sys.stderr)
+        except ImportError as e:
+            assert False, f"Failed to import response modules: {e}"
+
+    def test_tool_schema(self):
+        """Test that tool provides valid MCP schema."""
+        from src.mcp_server.tools.query_knowledge_hub import QueryKnowledgeHubTool
+
+        schema = QueryKnowledgeHubTool.to_tool_schema()
+
+        # Validate schema structure
+        assert "name" in schema
+        assert schema["name"] == "query_knowledge_hub"
+        assert "description" in schema
+        assert "inputSchema" in schema
+
+        # Validate input schema
+        input_schema = schema["inputSchema"]
+        assert input_schema["type"] == "object"
+        assert "properties" in input_schema
+        assert "query" in input_schema["properties"]
+        assert "top_k" in input_schema["properties"]
+        assert "collection" in input_schema["properties"]
+
+        # query should be required
+        assert "required" in input_schema
+        assert "query" in input_schema["required"]
+
+        print("✓ Tool schema is valid", file=sys.stderr)
+
+    def test_tool_error_handling_empty_query(self):
+        """Test tool error handling for empty query."""
+        from unittest.mock import MagicMock, patch
+        from src.mcp_server.tools.query_knowledge_hub import QueryKnowledgeHubTool
+
+        # Mock dependencies to avoid loading settings
+        mock_hybrid_search = MagicMock()
+        mock_reranker = MagicMock()
+        mock_settings = MagicMock()
+        
+        with patch('src.core.settings.get_settings', return_value=mock_settings):
+            tool = QueryKnowledgeHubTool(
+                hybrid_search=mock_hybrid_search,
+                reranker=mock_reranker
+            )
+            result = tool.execute(query="", top_k=5)
+
+        assert result["success"] is False
+        assert "error" in result
+        assert "empty" in result["error"].lower()
+        print("✓ Tool rejects empty query", file=sys.stderr)
+
+    def test_tool_error_handling_invalid_top_k(self):
+        """Test tool error handling for invalid top_k."""
+        from unittest.mock import MagicMock, patch
+        from src.mcp_server.tools.query_knowledge_hub import QueryKnowledgeHubTool
+
+        # Mock dependencies to avoid loading settings
+        mock_hybrid_search = MagicMock()
+        mock_reranker = MagicMock()
+        mock_settings = MagicMock()
+        
+        with patch('src.core.settings.get_settings', return_value=mock_settings):
+            tool = QueryKnowledgeHubTool(
+                hybrid_search=mock_hybrid_search,
+                reranker=mock_reranker
+            )
+
+            # Test top_k < 1
+            result = tool.execute(query="test", top_k=0)
+            assert result["success"] is False
+            assert "top_k" in result["error"]
+
+            # Test top_k > 50
+            result = tool.execute(query="test", top_k=100)
+            assert result["success"] is False
+            assert "top_k" in result["error"]
+
+        print("✓ Tool validates top_k parameter", file=sys.stderr)
+
+    def test_response_format(self):
+        """Test that tool returns properly formatted MCP response."""
+        from src.core.response.response_builder import ResponseBuilder
+        from src.core.types import RetrievalResult
+
+        # Create mock retrieval results
+        results = [
+            RetrievalResult(
+                chunk_id="test_chunk_1",
+                content="This is test content for chunk 1",
+                metadata={"source": "test.pdf", "doc_type": "pdf", "page": 1},
+                score=0.95,
+            ),
+            RetrievalResult(
+                chunk_id="test_chunk_2",
+                content="This is test content for chunk 2",
+                metadata={"source": "test.md", "doc_type": "markdown"},
+                score=0.87,
+            ),
+        ]
+
+        # Build response
+        response = ResponseBuilder.build(results, query="test query")
+
+        # Validate response structure
+        assert len(response.content) == 1
+        assert response.content[0]["type"] == "text"
+        assert "text" in response.content[0]
+
+        # Validate citations
+        assert len(response.citations) == 2
+        assert response.citations[0].id == 1
+        assert response.citations[0].source == "test.pdf"
+        assert response.citations[1].id == 2
+
+        # Validate markdown contains citations
+        markdown = response.content[0]["text"]
+        assert "[1]" in markdown
+        assert "[2]" in markdown
+        assert "test.pdf" in markdown
+
+        print("✓ Response format is correct", file=sys.stderr)
+
+    def test_empty_response_handling(self):
+        """Test that tool handles empty search results gracefully."""
+        from src.core.response.response_builder import ResponseBuilder
+
+        # Build response with no results
+        response = ResponseBuilder.build([], query="no results query")
+
+        assert len(response.content) == 1
+        assert response.content[0]["type"] == "text"
+        # Should contain friendly message
+        text = response.content[0]["text"]
+        assert len(text) > 0
+        assert ("未找到" in text or "找到" in text)
+
+        print("✓ Empty results handled gracefully", file=sys.stderr)
+
+
 # ============================================================================
 # pytest Entry Points
 # ============================================================================
