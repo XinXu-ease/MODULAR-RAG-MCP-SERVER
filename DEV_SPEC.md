@@ -2045,8 +2045,8 @@ dashboard:
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| F1 | TraceContext 增强（finish + 耗时统计 + trace_type） | [ ] | - |  |
-| F2 | 结构化日志 logger（JSON Lines） | [ ] | - |  |
+| F1 | TraceContext 增强（finish + 耗时统计 + trace_type） | [x] | 2026-04-30 | TraceContext + TraceCollector |
+| F2 | 结构化日志 logger（JSON Lines） | [x] | 2026-05-01 | JSONFormatter + write_trace |
 | F3 | 在 Query 链路打点 | [ ] | - |  |
 | F4 | 在 Ingestion 链路打点 | [ ] | - |  |
 | F5 | Pipeline 进度回调 (on_progress) | [ ] | - |  |
