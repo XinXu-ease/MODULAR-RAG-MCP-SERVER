@@ -2048,8 +2048,8 @@ dashboard:
 | F1 | TraceContext 增强（finish + 耗时统计 + trace_type） | [x] | 2026-04-30 | TraceContext + TraceCollector |
 | F2 | 结构化日志 logger（JSON Lines） | [x] | 2026-05-01 | JSONFormatter + write_trace |
 | F3 | 在 Query 链路打点 | [x] | 2026-05-01 | HybridSearch trace 记录完成 |
-| F4 | 在 Ingestion 链路打点 | [ ] | - |  |
-| F5 | Pipeline 进度回调 (on_progress) | [ ] | - |  |
+| F4 | 在 Ingestion 链路打点 | [x] | 2026-05-01 | Pipeline 完整 trace 记录 |
+| F5 | Pipeline 进度回调 (on_progress) | [x] | 2026-05-01 | on_progress 参数集成 |
 
 #### 阶段 G：可视化管理平台 Dashboard
 

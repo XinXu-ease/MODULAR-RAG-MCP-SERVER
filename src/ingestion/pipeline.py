@@ -35,19 +35,26 @@ class IngestionPipeline:
         self.history_db.parent.mkdir(parents=True, exist_ok=True)
         self._init_history_table()
 
-    def run(self, source: str, source_type: Optional[str] = None, collection: str = "default", force: bool = False) -> IngestionResult:
+    def run(self, source: str, source_type: Optional[str] = None, collection: str = "default", force: bool = False, on_progress: Optional[callable] = None) -> IngestionResult:
         trace = TraceContext(trace_type="ingestion")
         metrics = IngestionMetrics()
+        
+        import time
 
         try:
+            # Load stage
+            load_start = time.perf_counter()
             inferred_type = source_type or self._infer_source_type(source)
             loader = create_loader(inferred_type)
             document = loader.load(source)
-            trace.record_stage("load", source=source, source_type=inferred_type)
+            load_ms = (time.perf_counter() - load_start) * 1000
+            trace.record_stage("load", elapsed_ms=load_ms, source=source, source_type=inferred_type, method=inferred_type)
 
             source_hash = document.metadata.get("source_hash", "")
             if not force and self._is_already_ingested(source, source_hash, collection):
                 trace.finish()
+                if on_progress:
+                    on_progress("load", 1, 1)
                 return IngestionResult(
                     success=True,
                     source=source,
@@ -55,21 +62,46 @@ class IngestionPipeline:
                     trace_id=trace.trace_id,
                 )
 
+            # Split stage
+            split_start = time.perf_counter()
             chunks = self.chunker.split_document(document)
+            split_ms = (time.perf_counter() - split_start) * 1000
+            trace.record_stage("split", elapsed_ms=split_ms, chunk_count=len(chunks), method="recursive")
+            if on_progress:
+                on_progress("split", 1, 5)
+
+            # Transform stages (refine, enrich, caption)
+            transform_start = time.perf_counter()
             chunks = self.refiner.transform(chunks, trace=trace)
             chunks = self.enricher.transform(chunks, trace=trace)
             chunks = self.captioner.transform(chunks, trace=trace)
+            transform_ms = (time.perf_counter() - transform_start) * 1000
+            trace.record_stage("transform", elapsed_ms=transform_ms, chunk_count=len(chunks), method="multi_stage")
+            if on_progress:
+                on_progress("transform", 2, 5)
 
+            # Embed stage
+            embed_start = time.perf_counter()
             encoded = self.batch.process(chunks)
             dense_vectors = encoded["dense_vectors"]
             sparse_vectors = encoded["sparse_vectors"]
+            embed_ms = (time.perf_counter() - embed_start) * 1000
+            trace.record_stage("embed", elapsed_ms=embed_ms, chunk_count=len(chunks), method="batch_embedding")
+            if on_progress:
+                on_progress("embed", 3, 5)
 
+            # Upsert stage
+            upsert_start = time.perf_counter()
             self.bm25.build(sparse_vectors, rebuild=False)
             self.vector_upserter.upsert(chunks, dense_vectors)
+            upsert_ms = (time.perf_counter() - upsert_start) * 1000
+            trace.record_stage("upsert", elapsed_ms=upsert_ms, chunk_count=len(chunks), method="chroma_bm25")
 
             metrics.total_chunks = len(chunks)
             metrics.total_images = sum(len(chunk.image_refs) for chunk in chunks)
-            trace.record_stage("store", chunk_count=len(chunks))
+            if on_progress:
+                on_progress("upsert", 4, 5)
+                on_progress("complete", 5, 5)
 
             self._record_ingested(source=source, source_hash=source_hash, collection=collection)
             trace.finish()
@@ -79,6 +111,8 @@ class IngestionPipeline:
         except Exception as exc:
             trace.finish()
             metrics.total_latency_ms = trace.total_latency_ms
+            if on_progress:
+                on_progress("error", 0, 5)
             return IngestionResult(success=False, source=source, metrics=metrics, error=str(exc), trace_id=trace.trace_id)
 
     @staticmethod
