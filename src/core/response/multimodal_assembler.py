@@ -1,4 +1,4 @@
-"""Multimodal response assembler: Handle text + image content."""
+"""Multimodal response assembler汇编: Handle text + image content."""
 
 import base64
 import logging
@@ -57,7 +57,7 @@ class MultimodalAssembler:
             retrieval_results: 检索结果列表
 
         Returns:
-            MCP 协议格式的 content 数组
+            MCP 协议格式的 content 数组 (base64 编码的图像和文本）
         """
         content = []
 

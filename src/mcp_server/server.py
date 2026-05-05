@@ -144,23 +144,42 @@ class MCPServerImpl:
             }
         
         @self.app.tool()
-        def get_document_summary(doc_id: str) -> Dict[str, Any]:
-            """Get summary of a document by ID.
+        def get_document_summary(
+            doc_id: str = "",
+            source_ref: str = "",
+            chunk_id: str = "",
+            collection: str = "",
+            context_window: int = 10,
+        ) -> Dict[str, Any]:
+            """Get summary of a document from a source_ref or chunk_id.
             
             Args:
-                doc_id: Document ID or file name
+                doc_id: Backward-compatible lookup ID
+                source_ref: Original loaded document reference from a citation
+                chunk_id: Exact retrieved chunk ID from a citation
+                collection: Optional collection namespace filter
+                context_window: Number of neighboring chunks to return on each side
             
             Returns:
                 Dictionary with document summary and metadata
             """
-            logger.info(f"Get document summary handler: doc_id={doc_id}")
+            logger.info(
+                "Get document summary handler: doc_id=%s, source_ref=%s, chunk_id=%s, collection=%s",
+                doc_id,
+                source_ref,
+                chunk_id,
+                collection,
+            )
             
-            # Stub response for E1 - TODO (E5): Query DocumentManager for actual summaries
-            return {
-                "doc_id": doc_id,
-                "summary": "[STUB] Document summary not available yet. Implement E5 to enable summaries.",
-                "chunks": 0
-            }
+            from src.mcp_server.tools.get_document_summary import GetDocumentSummaryTool
+
+            return GetDocumentSummaryTool().execute(
+                doc_id=doc_id or None,
+                source_ref=source_ref or None,
+                chunk_id=chunk_id or None,
+                collection=collection or None,
+                context_window=context_window,
+            )
         
         logger.info("Tools registered: query_knowledge_hub, list_collections, get_document_summary")
     

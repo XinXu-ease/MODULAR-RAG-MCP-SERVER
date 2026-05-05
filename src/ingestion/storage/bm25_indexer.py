@@ -90,3 +90,26 @@ class BM25Indexer:
         payload = json.loads(self.index_path.read_text(encoding="utf-8"))
         self.index = payload.get("index", {})
         self.doc_lengths = payload.get("doc_lengths", {})
+
+    def remove_document(self, chunk_ids: List[str]) -> int:
+        chunk_set = set(chunk_ids)
+        if not chunk_set:
+            return 0
+
+        removed = 0
+        new_index: Dict[str, Dict[str, object]] = {}
+        for term, info in self.index.items():
+            postings = []
+            for posting in info.get("postings", []):
+                chunk_id = posting.get("chunk_id")
+                if chunk_id in chunk_set:
+                    removed += 1
+                    self.doc_lengths.pop(str(chunk_id), None)
+                    continue
+                postings.append(posting)
+            if postings:
+                new_index[term] = {"idf": info.get("idf", 0.0), "postings": postings}
+
+        self.index = new_index
+        self.persist()
+        return removed

@@ -28,7 +28,7 @@ class DummyBM25:
 
 
 class DummyUpserter:
-    def upsert(self, chunks, dense_vectors):
+    def upsert(self, chunks, dense_vectors, collection="default"):
         return ["id1"]
 
 
@@ -52,3 +52,8 @@ def test_ingestion_pipeline_mvp(monkeypatch, tmp_path):
 
     result2 = pipeline.run(source="x.pdf", collection="test", force=False)
     assert result2.metrics.skipped_chunks == 1
+
+
+def test_ingestion_pipeline_infers_website_urls():
+    assert IngestionPipeline._infer_source_type("https://www.hariousa.com/recipes/v60") == "web"
+    assert IngestionPipeline._infer_source_type("http://www.hariousa.com/recipes/v60") == "web"

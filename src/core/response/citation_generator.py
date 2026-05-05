@@ -28,6 +28,7 @@ class CitationGenerator:
         for idx, result in enumerate(retrieval_results, start=1):
             source = result.metadata.get("source", "unknown")
             doc_type = result.metadata.get("doc_type", "document")
+            source_ref = result.metadata.get("source_ref")
             page = result.metadata.get("page", None)
             image_refs = result.image_refs or []
 
@@ -36,6 +37,7 @@ class CitationGenerator:
                 chunk_id=result.chunk_id,
                 source=source,
                 doc_type=doc_type,
+                source_ref=str(source_ref) if source_ref else None,
                 page=page,
                 text=result.content[:200],  # 截断到200字符作为摘要
                 score=result.score,
@@ -61,6 +63,7 @@ class CitationGenerator:
                 "id": c.id,
                 "chunk_id": c.chunk_id,
                 "source": c.source,
+                "source_ref": c.source_ref,
                 "doc_type": c.doc_type,
                 "page": c.page,
                 "text": c.text,

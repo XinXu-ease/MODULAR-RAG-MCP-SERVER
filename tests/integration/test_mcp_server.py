@@ -415,7 +415,7 @@ class TestQueryKnowledgeHubTool:
             RetrievalResult(
                 chunk_id="test_chunk_1",
                 content="This is test content for chunk 1",
-                metadata={"source": "test.pdf", "doc_type": "pdf", "page": 1},
+                metadata={"source": "test.pdf", "doc_type": "pdf", "page": 1, "source_ref": "pdf_doc_1"},
                 score=0.95,
             ),
             RetrievalResult(
@@ -437,6 +437,7 @@ class TestQueryKnowledgeHubTool:
         # Validate citations
         assert len(response.citations) == 2
         assert response.citations[0].id == 1
+        assert response.citations[0].source_ref == "pdf_doc_1"
         assert response.citations[0].source == "test.pdf"
         assert response.citations[1].id == 2
 

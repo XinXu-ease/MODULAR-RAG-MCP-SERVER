@@ -1,5 +1,13 @@
 ﻿from .chunking import DocumentChunker
 from .embedding import BatchProcessor, DenseEncoder, SparseEncoder
+from .document_manager import (
+    CollectionStats,
+    DeleteResult,
+    DocumentChunkDetail,
+    DocumentDetail,
+    DocumentManager,
+    DocumentSummary,
+)
 from .loaders import BaseLoader, PDFLoader, WebLoader, create_loader
 from .pipeline import IngestionPipeline
 from .storage import BM25Indexer, ImageStorage, VectorUpserter
@@ -11,6 +19,12 @@ __all__ = [
     "WebLoader",
     "create_loader",
     "DocumentChunker",
+    "CollectionStats",
+    "DeleteResult",
+    "DocumentChunkDetail",
+    "DocumentDetail",
+    "DocumentManager",
+    "DocumentSummary",
     "BaseTransform",
     "ChunkRefiner",
     "MetadataEnricher",

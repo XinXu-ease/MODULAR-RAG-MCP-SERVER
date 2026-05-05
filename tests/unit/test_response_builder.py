@@ -16,7 +16,7 @@ class TestCitationGenerator:
             RetrievalResult(
                 chunk_id="chunk_1",
                 content="This is the first chunk",
-                metadata={"source": "doc1.pdf", "doc_type": "pdf", "page": 1},
+                metadata={"source": "doc1.pdf", "doc_type": "pdf", "page": 1, "source_ref": "pdf_doc_1"},
                 score=0.95,
             ),
             RetrievalResult(
@@ -33,6 +33,7 @@ class TestCitationGenerator:
         assert len(citations) == 2
         assert citations[0].id == 1
         assert citations[0].chunk_id == "chunk_1"
+        assert citations[0].source_ref == "pdf_doc_1"
         assert citations[0].source == "doc1.pdf"
         assert citations[0].page == 1
         assert citations[0].score == 0.95

@@ -101,3 +101,40 @@ class ImageStorage:
             }
             for row in rows
         ]
+
+    def remove_images(
+        self,
+        collection: Optional[str] = None,
+        doc_hash: Optional[str] = None,
+        image_ids: Optional[List[str]] = None,
+    ) -> int:
+        where = []
+        params = []
+        if collection:
+            where.append("collection = ?")
+            params.append(collection)
+        if doc_hash:
+            where.append("doc_hash = ?")
+            params.append(doc_hash)
+        if image_ids:
+            placeholders = ",".join(["?"] * len(image_ids))
+            where.append(f"image_id IN ({placeholders})")
+            params.extend(image_ids)
+
+        sql = "SELECT image_id, file_path FROM image_index"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+
+        removed = 0
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+            for image_id, file_path in rows:
+                try:
+                    Path(file_path).unlink(missing_ok=True)
+                except TypeError:
+                    path_obj = Path(file_path)
+                    if path_obj.exists():
+                        path_obj.unlink()
+                conn.execute("DELETE FROM image_index WHERE image_id = ?", (image_id,))
+                removed += 1
+        return removed

@@ -1,271 +1,210 @@
 """Unit tests for get_document_summary tool."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from src.mcp_server.tools.get_document_summary import GetDocumentSummaryTool
 
 
-@pytest.fixture
-def mock_settings():
-    """Fixture for mocking get_settings."""
-    return MagicMock()
-
-
-@pytest.fixture
-def mock_vector_store():
-    """Fixture for creating a mock vector store."""
-    store = MagicMock()
-    return store
+def _record(
+    vector_id: str,
+    *,
+    chunk_id: str,
+    source_ref: str,
+    chunk_index: int,
+    text: str,
+    collection: str = "knowledge",
+    title: str = "RAG Architecture Guide",
+    source: str = "architecture.pdf",
+):
+    return {
+        "id": vector_id,
+        "metadata": {
+            "chunk_id": chunk_id,
+            "source_ref": source_ref,
+            "source": source,
+            "title": title,
+            "summary": "Comprehensive guide to building RAG systems",
+            "tags": ["rag", "architecture"],
+            "doc_type": "pdf",
+            "collection": collection,
+            "chunk_index": chunk_index,
+        },
+        "text": text,
+    }
 
 
 class TestGetDocumentSummaryTool:
-    """Test GetDocumentSummaryTool."""
-
     def test_tool_imports(self):
-        """Test that tool imports successfully."""
         assert GetDocumentSummaryTool is not None
 
-    def test_tool_schema(self):
-        """Test that tool provides valid MCP schema."""
+    def test_tool_schema_accepts_source_ref_or_chunk_id(self):
         schema = GetDocumentSummaryTool.to_tool_schema()
 
-        # Validate schema structure
-        assert "name" in schema
         assert schema["name"] == "get_document_summary"
-        assert "description" in schema
-        assert "inputSchema" in schema
-
-        # Validate input schema
         input_schema = schema["inputSchema"]
         assert input_schema["type"] == "object"
-        assert "properties" in input_schema
         assert "doc_id" in input_schema["properties"]
-        assert input_schema["required"] == ["doc_id"]
+        assert "source_ref" in input_schema["properties"]
+        assert "chunk_id" in input_schema["properties"]
+        assert "context_window" in input_schema["properties"]
+        assert input_schema["required"] == []
 
-    def test_execute_empty_doc_id(self, mock_vector_store, mock_settings):
-        """Test error handling for empty doc_id."""
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_vector_store)
-            result = tool.execute(doc_id="")
+    def test_execute_rejects_empty_lookup(self):
+        tool = GetDocumentSummaryTool(vector_store=MagicMock())
+
+        result = tool.execute(doc_id="")
 
         assert result["success"] is False
         assert "empty" in result["error"].lower()
 
-    def test_execute_doc_not_found(self, mock_vector_store, mock_settings):
-        """Test error handling when document not found."""
-        mock_vector_store.get_by_ids.return_value = []
+    def test_execute_doc_not_found(self):
+        mock_store = MagicMock()
+        mock_store.get_by_ids.return_value = []
+        tool = GetDocumentSummaryTool(vector_store=mock_store)
 
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_vector_store)
-            result = tool.execute(doc_id="nonexistent_doc")
+        result = tool.execute(doc_id="nonexistent_doc")
 
         assert result["success"] is False
         assert "not found" in result["error"].lower()
 
-    def test_execute_doc_found_complete_metadata(self, mock_vector_store, mock_settings):
-        """Test successful retrieval with complete metadata."""
-        mock_result = {
-            "id": "doc1",
-            "metadata": {
-                "title": "Sample Document",
-                "summary": "This is a sample document summary",
-                "tags": ["sample", "document", "test"],
-                "source": "test.pdf",
-                "page": 1,
-                "collection": "test_collection",
-                "enriched_by": "llm",
-            },
-            "text": "Full document content...",
-        }
-        mock_vector_store.get_by_ids.return_value = [mock_result]
+    def test_resolves_source_ref_and_returns_bounded_same_source_window(self):
+        mock_store = MagicMock()
+        mock_store.list_records.return_value = [
+            _record("v0", chunk_id="chunk-0", source_ref="doc-a", chunk_index=0, text="A0"),
+            _record("v1", chunk_id="chunk-1", source_ref="doc-a", chunk_index=1, text="A1"),
+            _record("v2", chunk_id="chunk-2", source_ref="doc-a", chunk_index=2, text="A2"),
+            _record("v3", chunk_id="chunk-3", source_ref="doc-a", chunk_index=3, text="A3"),
+            _record("v4", chunk_id="chunk-4", source_ref="doc-b", chunk_index=0, text="B0"),
+        ]
+        tool = GetDocumentSummaryTool(vector_store=mock_store)
 
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_vector_store)
-            result = tool.execute(doc_id="doc1")
+        result = tool.execute(source_ref="doc-a", context_window=1)
 
         assert result["success"] is True
-        assert result["doc_id"] == "doc1"
-        assert result["document"]["title"] == "Sample Document"
-        assert result["document"]["summary"] == "This is a sample document summary"
-        assert result["document"]["tags"] == ["sample", "document", "test"]
-        assert result["document"]["source"] == "test.pdf"
-        assert result["document"]["page"] == 1
-        assert result["document"]["collection"] == "test_collection"
+        document = result["document"]
+        assert document["id"] == "doc-a"
+        assert document["source_ref"] == "doc-a"
+        assert document["chunk_count"] == 4
+        assert document["returned_chunk_count"] == 2
+        assert [chunk["chunk_id"] for chunk in document["chunks"]] == ["chunk-0", "chunk-1"]
+        assert document["chunk_window"] == {"start_index": 0, "end_index": 1, "total_chunks": 4}
 
-    def test_execute_doc_found_minimal_metadata(self, mock_vector_store, mock_settings):
-        """Test retrieval with minimal metadata (defaults applied)."""
-        mock_result = {
-            "id": "doc2",
-            "metadata": {
-                "source": "doc2.txt",
-            },
-            "text": "Minimal document",
-        }
-        mock_vector_store.get_by_ids.return_value = [mock_result]
+    def test_resolves_chunk_id_and_returns_neighboring_chunks(self):
+        mock_store = MagicMock()
+        mock_store.list_records.return_value = [
+            _record("v0", chunk_id="chunk-0", source_ref="doc-a", chunk_index=0, text="A0"),
+            _record("v1", chunk_id="chunk-1", source_ref="doc-a", chunk_index=1, text="A1"),
+            _record("v2", chunk_id="chunk-2", source_ref="doc-a", chunk_index=2, text="A2"),
+            _record("v3", chunk_id="chunk-3", source_ref="doc-a", chunk_index=3, text="A3"),
+            _record("v4", chunk_id="chunk-4", source_ref="doc-a", chunk_index=4, text="A4"),
+        ]
+        tool = GetDocumentSummaryTool(vector_store=mock_store)
 
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_vector_store)
-            result = tool.execute(doc_id="doc2")
+        result = tool.execute(chunk_id="chunk-2", context_window=1)
 
         assert result["success"] is True
-        assert result["document"]["title"] == "Untitled"
-        assert result["document"]["summary"] == "No summary available"
-        assert result["document"]["tags"] == []
-        assert result["document"]["source"] == "doc2.txt"
-        assert result["document"]["collection"] == "default"
+        document = result["document"]
+        assert document["anchor"]["chunk_id"] == "chunk-2"
+        assert document["anchor"]["chunk_index"] == 2
+        assert [chunk["chunk_id"] for chunk in document["chunks"]] == ["chunk-1", "chunk-2", "chunk-3"]
+        assert document["chunk_window"] == {"start_index": 1, "end_index": 3, "total_chunks": 5}
 
-    def test_execute_doc_with_partial_metadata(self, mock_vector_store, mock_settings):
-        """Test retrieval with partial metadata."""
-        mock_result = {
-            "id": "doc3",
-            "metadata": {
-                "title": "Partial Doc",
-                "source": "doc3.pdf",
-                # missing: summary, tags, page, collection, enriched_by
-            },
-            "text": "Partial metadata document",
-        }
-        mock_vector_store.get_by_ids.return_value = [mock_result]
+    def test_filters_by_collection(self):
+        mock_store = MagicMock()
+        mock_store.list_records.return_value = [
+            _record(
+                "v0",
+                chunk_id="chunk-0",
+                source_ref="doc-a",
+                chunk_index=0,
+                text="A0",
+                collection="knowledge",
+            ),
+            _record(
+                "v1",
+                chunk_id="chunk-1",
+                source_ref="doc-a",
+                chunk_index=1,
+                text="A1",
+                collection="other",
+            ),
+        ]
+        tool = GetDocumentSummaryTool(vector_store=mock_store)
 
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_vector_store)
-            result = tool.execute(doc_id="doc3")
+        result = tool.execute(source_ref="doc-a", collection="knowledge")
 
         assert result["success"] is True
-        assert result["document"]["title"] == "Partial Doc"
-        assert result["document"]["summary"] == "No summary available"
-        assert result["document"]["source"] == "doc3.pdf"
-        assert result["document"]["page"] is None
-        assert result["document"]["collection"] == "default"
+        assert result["document"]["chunk_count"] == 1
+        assert result["document"]["collection"] == "knowledge"
 
-    def test_execute_error_handling(self, mock_vector_store, mock_settings):
-        """Test error handling when vector store fails."""
-        mock_vector_store.get_by_ids.side_effect = Exception("Vector store error")
+    def test_falls_back_to_get_by_ids_for_legacy_vector_store(self):
+        mock_store = MagicMock()
+        mock_store.get_by_ids.return_value = [
+            {
+                "id": "legacy-id",
+                "metadata": {
+                    "title": "Legacy Document",
+                    "source": "legacy.pdf",
+                    "collection": "default",
+                    "chunk_id": "legacy-id",
+                    "chunk_index": 0,
+                },
+                "text": "Legacy content",
+            }
+        ]
+        tool = GetDocumentSummaryTool(vector_store=mock_store)
 
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_vector_store)
-            result = tool.execute(doc_id="doc4")
+        result = tool.execute(doc_id="legacy-id")
 
-        assert result["success"] is False
-        assert "error" in result
-
-    def test_whitespace_doc_id(self, mock_vector_store, mock_settings):
-        """Test that whitespace-only doc_id is rejected."""
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_vector_store)
-            result = tool.execute(doc_id="   ")
-
-        assert result["success"] is False
-        assert "empty" in result["error"].lower()
+        assert result["success"] is True
+        assert result["document"]["title"] == "Legacy Document"
+        assert result["document"]["summary"] == "Legacy content"
+        assert result["document"]["chunks"][0]["chunk_id"] == "legacy-id"
+        mock_store.get_by_ids.assert_called_once_with(["legacy-id"])
 
     def test_error_response_format(self):
-        """Test error response format."""
-        error_msg = "Test error"
-        response = GetDocumentSummaryTool._error_response(error_msg)
+        response = GetDocumentSummaryTool._error_response("Test error")
 
         assert response["success"] is False
-        assert response["error"] == error_msg
-
-    def test_doc_id_passed_correctly(self, mock_vector_store, mock_settings):
-        """Test that doc_id is passed correctly to vector_store."""
-        mock_result = {
-            "id": "test_doc_id",
-            "metadata": {"source": "test.pdf"},
-            "text": "Test",
-        }
-        mock_vector_store.get_by_ids.return_value = [mock_result]
-
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_vector_store)
-            result = tool.execute(doc_id="test_doc_id")
-
-        # Verify that get_by_ids was called with the correct doc_id
-        mock_vector_store.get_by_ids.assert_called_once_with(["test_doc_id"])
-
-    def test_metadata_nested_in_response(self, mock_vector_store, mock_settings):
-        """Test that complete metadata is nested in response."""
-        mock_metadata = {
-            "title": "Test",
-            "source": "test.pdf",
-            "custom_field": "custom_value",
-        }
-        mock_result = {
-            "id": "doc5",
-            "metadata": mock_metadata,
-            "text": "Test",
-        }
-        mock_vector_store.get_by_ids.return_value = [mock_result]
-
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_vector_store)
-            result = tool.execute(doc_id="doc5")
-
-        # Verify metadata is preserved
-        assert "metadata" in result["document"]
-        assert result["document"]["metadata"]["custom_field"] == "custom_value"
+        assert response["error"] == "Test error"
 
 
 class TestGetDocumentSummaryIntegration:
-    """Integration tests for get_document_summary."""
-
-    def test_tool_with_mocked_chroma(self, mock_settings):
-        """Test tool with realistic ChromaStore mock."""
+    def test_tool_with_mocked_chroma_collection_shape(self):
         mock_store = MagicMock()
+        mock_store.list_records.side_effect = AttributeError("not supported")
+        mock_store._collection.get.return_value = {
+            "ids": ["v0", "v1", "v2"],
+            "metadatas": [
+                _record("v0", chunk_id="chunk-0", source_ref="doc-a", chunk_index=0, text="")["metadata"],
+                _record("v1", chunk_id="chunk-1", source_ref="doc-a", chunk_index=1, text="")["metadata"],
+                _record("v2", chunk_id="chunk-2", source_ref="doc-a", chunk_index=2, text="")["metadata"],
+            ],
+            "documents": ["A0", "A1", "A2"],
+        }
+        tool = GetDocumentSummaryTool(vector_store=mock_store)
 
-        # Simulate realistic Chroma response
-        mock_store.get_by_ids.return_value = [
-            {
-                "id": "knowledge_doc_1",
-                "metadata": {
-                    "title": "RAG Architecture Guide",
-                    "summary": "Comprehensive guide to building RAG systems",
-                    "tags": ["rag", "architecture", "guide"],
-                    "source": "architecture.pdf",
-                    "page": 5,
-                    "collection": "knowledge",
-                    "enriched_by": "llm",
-                },
-                "text": "Full document content here...",
-            }
-        ]
-
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
-            tool = GetDocumentSummaryTool(vector_store=mock_store)
-            result = tool.execute(doc_id="knowledge_doc_1")
+        result = tool.execute(chunk_id="chunk-1", context_window=10)
 
         assert result["success"] is True
         assert result["document"]["title"] == "RAG Architecture Guide"
-        assert result["document"]["collection"] == "knowledge"
-        assert len(result["document"]["tags"]) == 3
+        assert result["document"]["returned_chunk_count"] == 3
 
-    def test_tool_multiple_docs_in_sequence(self, mock_settings):
-        """Test querying multiple documents sequentially."""
+    def test_settings_are_still_loaded(self):
+        mock_settings = MagicMock()
+        mock_settings.get.return_value = "default"
         mock_store = MagicMock()
-
-        # First query
         mock_store.get_by_ids.return_value = [
             {
-                "id": "doc_a",
-                "metadata": {"title": "Doc A", "source": "a.pdf"},
-                "text": "Content A",
+                "id": "doc-a",
+                "metadata": {"chunk_id": "doc-a", "source": "a.pdf"},
+                "text": "A",
             }
         ]
 
-        with patch('src.mcp_server.tools.get_document_summary.get_settings', return_value=mock_settings):
+        with patch("src.mcp_server.tools.get_document_summary.get_settings", return_value=mock_settings):
             tool = GetDocumentSummaryTool(vector_store=mock_store)
-            result1 = tool.execute(doc_id="doc_a")
+            result = tool.execute(doc_id="doc-a")
 
-        assert result1["document"]["title"] == "Doc A"
-
-        # Second query
-        mock_store.get_by_ids.return_value = [
-            {
-                "id": "doc_b",
-                "metadata": {"title": "Doc B", "source": "b.pdf"},
-                "text": "Content B",
-            }
-        ]
-
-        result2 = tool.execute(doc_id="doc_b")
-        assert result2["document"]["title"] == "Doc B"
+        assert result["success"] is True
+        mock_settings.get.assert_called()

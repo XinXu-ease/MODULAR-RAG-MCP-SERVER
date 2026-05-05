@@ -2055,18 +2055,18 @@ dashboard:
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| G1 | Dashboard 基础架构与系统总览页 | [ ] | - |  |
-| G2 | DocumentManager 实现 | [ ] | - |  |
-| G3 | 数据浏览器页面 | [ ] | - |  |
-| G4 | Ingestion 管理页面 | [ ] | - |  |
-| G5 | Ingestion 追踪页面 | [ ] | - |  |
-| G6 | Query 追踪页面 | [ ] | - |  |
+| G1 | Dashboard 基础架构与系统总览页 | [x] | 2026-05-01 | Streamlit 入口 + Overview 页面 |
+| G2 | DocumentManager 实现 | [x] | 2026-05-01 | 文档列表、详情、删除与统计 |
+| G3 | 数据浏览器页面 | [x] | 2026-05-01 | 文档列表与 chunk 详情浏览 |
+| G4 | Ingestion 管理页面 | [x] | 2026-05-01 | 文件上传、路径摄取与进度展示 |
+| G5 | Ingestion 追踪页面 | [x] | 2026-05-01 | Ingestion trace 列表与详情 |
+| G6 | Query 追踪页面 | [x] | 2026-05-01 | Query trace 列表与详情 |
 
 #### 阶段 H：评估体系
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| H1 | RagasEvaluator 实现 | [ ] | - |  |
+| H1 | RagasEvaluator 实现 | [x] | 2026-05-03 | RagasEvaluator + 工厂集成 |
 | H2 | CompositeEvaluator 实现 | [ ] | - |  |
 | H3 | EvalRunner + Golden Test Set | [ ] | - |  |
 | H4 | 评估面板页面 | [ ] | - |  |
@@ -2092,12 +2092,12 @@ dashboard:
 | 阶段 B | 16 | 16 | 100% ✅ |
 | 阶段 C | 15 | 15 | 100% ✅ |
 | 阶段 D | 7 | 7 | 100% ✅ |
-| 阶段 E | 6 | 5 | 83% 🟢 |
-| 阶段 F | 5 | 0 | 0% ⬜ |
-| 阶段 G | 6 | 0 | 0% ⬜ |
+| 阶段 E | 6 | 6 | 100% ✅ |
+| 阶段 F | 5 | 5 | 100% ✅ |
+| 阶段 G | 6 | 6 | 100% ✅ |
 | 阶段 H | 5 | 0 | 0% ⬜ |
 | 阶段 I | 5 | 0 | 0% ⬜ |
-| **总计** | **68** | **65** | **95.6% 🚀** |
+| **总计** | **68** | **58** | **85.3% 🟢** |
 
 
 ---
@@ -3232,3 +3232,17 @@ RAG 系统的上限取决于其对特定业务数据的理解深度。未来的�
 这种演进方向将把本项目从一个“智能搜索引擎”升级为一个“智能研究助理”的基础设施底座。
 
 
+
+### Future Phase J: Open Website Ingestion
+
+- Keep the current WebLoader whitelist as a temporary safety boundary.
+- Later, support ingestion from arbitrary HTML website URLs through the same WebLoader path.
+- Acceptance: dashboard URL ingestion accepts a non-whitelisted `http(s)` URL, fetches it with SSRF-safe validation, extracts readable HTML content to Markdown, records `doc_type='website'`, and keeps trace/history metadata.
+
+### MCP Tool Contract Update: Query-to-Summary Linking
+
+- `query_knowledge_hub` structured citations include `source_ref` when ingestion metadata contains a loader-level document reference.
+- `source_ref` points back to the original loaded document, while `chunk_id` identifies the exact retrieved chunk.
+- `get_document_summary` resolves `source_ref`, `chunk_id`, source hash/path, or legacy vector ID to an anchor chunk, groups chunks from the same original source, and returns document-level summary metadata.
+- To avoid returning an entire long document, `get_document_summary` returns a bounded chunk window around the anchor chunk. The default window is 10 chunks before and 10 chunks after the anchor; clients can override this with `context_window`.
+- `collection` remains the knowledge-base namespace/filter written during ingestion and used to limit query results to a logical subset of indexed chunks.

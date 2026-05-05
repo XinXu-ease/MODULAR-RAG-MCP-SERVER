@@ -123,11 +123,12 @@ class Citation:
     """
     引用信息，指向一个检索结果的完整定位。
     """
-    
+
     id: int  # 在答案中的引用序号
     chunk_id: str  # 被引用的 Chunk ID
     source: str  # 来源文件名或 URL
     doc_type: str  # 文档类型（pdf/website）
+    source_ref: Optional[str] = None  # Original loader-level document ID, when available
     page: Optional[int] = None  # 页码（对 PDF）
     text: str = ""  # 被引用的原文片段
     score: float = 0.0  # 相关性分数

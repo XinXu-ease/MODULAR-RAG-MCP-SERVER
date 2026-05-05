@@ -15,9 +15,23 @@ from src.ingestion.storage import BM25Indexer, ImageStorage, VectorUpserter
 from src.ingestion.transform import ChunkRefiner, ImageCaptioner, MetadataEnricher
 
 
+def _resolve_settings(settings: Optional[Settings] = None) -> Settings:
+    if settings is not None:
+        return settings
+
+    try:
+        return get_settings()
+    except Exception:
+        class _FallbackSettings:
+            def get(self, key: str, default=None):
+                return default
+
+        return _FallbackSettings()  # type: ignore[return-value]
+
+
 class IngestionPipeline:
     def __init__(self, settings: Optional[Settings] = None):
-        self.settings = settings or get_settings()
+        self.settings = _resolve_settings(settings)
         self.chunker = DocumentChunker(self.settings)
         self.refiner = ChunkRefiner(self.settings)
         self.enricher = MetadataEnricher(self.settings)
@@ -93,7 +107,7 @@ class IngestionPipeline:
             # Upsert stage
             upsert_start = time.perf_counter()
             self.bm25.build(sparse_vectors, rebuild=False)
-            self.vector_upserter.upsert(chunks, dense_vectors)
+            self.vector_upserter.upsert(chunks, dense_vectors, collection=collection)
             upsert_ms = (time.perf_counter() - upsert_start) * 1000
             trace.record_stage("upsert", elapsed_ms=upsert_ms, chunk_count=len(chunks), method="chroma_bm25")
 

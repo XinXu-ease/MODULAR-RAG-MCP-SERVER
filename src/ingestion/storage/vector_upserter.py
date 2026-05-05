@@ -14,7 +14,12 @@ class VectorUpserter:
         self.settings = settings or get_settings()
         self.vector_store = vector_store or create_vector_store(self.settings)
 
-    def upsert(self, chunks: List[Chunk], dense_vectors: Dict[str, List[float]]) -> List[str]:
+    def upsert(
+        self,
+        chunks: List[Chunk],
+        dense_vectors: Dict[str, List[float]],
+        collection: Optional[str] = None,
+    ) -> List[str]:
         ids: List[str] = []
         embeddings: List[List[float]] = []
         metadatas: List[dict] = []
@@ -27,7 +32,13 @@ class VectorUpserter:
 
             stable_id = self._stable_id(chunk)
             metadata = dict(chunk.metadata)
-            metadata.update({"source": chunk.source, "chunk_index": chunk.chunk_index})
+            metadata.update({
+                "source": chunk.source,
+                "chunk_index": chunk.chunk_index,
+                "chunk_id": chunk.id,
+            })
+            if collection:
+                metadata["collection"] = collection
 
             ids.append(stable_id)
             embeddings.append(vector)
